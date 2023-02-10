@@ -1,0 +1,45 @@
+{
+  "name": "react-grouped-children",
+  "description": "Enables creation of grouped component inheritance hierarchies for React components",
+  "private": false,
+  "homepage": "https://github.com/SLTKA/react-grouped-children",
+  "bugs": {
+    "url": "https://github.com/SLTKA/react-grouped-children/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SLTKA/react-grouped-children"
+  },
+  "license": "MIT",
+  "version": "0.0.1",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "/dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "lint": "eslint ./"
+  },
+  "peerDependencies": {
+    "react": ">= 17"
+  },
+  "devDependencies": {
+    "@types/react": "^18.0.27",
+    "@typescript-eslint/eslint-plugin": "^5.51.0",
+    "@typescript-eslint/parser": "^5.51.0",
+    "eslint": "^8.33.0",
+    "eslint-config-prettier": "^8.6.0",
+    "eslint-plugin-prettier": "^4.2.1",
+    "eslint-plugin-react": "^7.32.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "typescript": "^4.9.5"
+  }
+}
