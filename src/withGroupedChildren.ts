@@ -1,10 +1,20 @@
 import { Children, createElement } from "react"
-import { ProxyComponent } from "./ProxyComponent"
+import { proxyComponentFactory } from "./proxyComponentFactory"
 import { isNullValueKey, typedKeys } from "./typeGuards"
-import type { WithGroupedChildrenComponent, Config, GroupedChildrenProps, OmitGroupedChildren } from "./types"
-import { spliceChildByType, uncapitalize } from "./utils"
+import type {
+  WithGroupedChildrenComponent,
+  Config,
+  GroupedChildrenProps,
+  OmitGroupedChildren,
+  TraverseChildren,
+  ChildMatcher,
+} from "./types"
+import { spliceChildrenByType, uncapitalize } from "./utils"
 
-const defaultFactory = () => ProxyComponent
+const defaultFactory = (rootName: string) => (key: string) => proxyComponentFactory(`${rootName}.${key}`)
+const defaultTraverseChildren: TraverseChildren = (c) =>
+  (c && typeof c === "object" && "props" in c && c.props.children) || undefined
+const defaultComponentMatcher: ChildMatcher = (c, _, t) => !!c && typeof c === "object" && "type" in c && c.type === t
 
 /**
  * Gives an ability to pass multiple number of children groups to a component using classic
@@ -25,7 +35,14 @@ export const withGroupedChildren = <P extends object, S extends Record<string, R
   childrenSpec: S,
   config?: Config,
 ): WithGroupedChildrenComponent<P, S> => {
-  const { getComponentName, childrenToArray = Children.toArray, proxyComponentFactory = defaultFactory } = config ?? {}
+  const componentName = Component.displayName || Component.name
+  const {
+    getComponentName,
+    childrenToArray = Children.toArray,
+    proxyComponentFactory = defaultFactory(componentName),
+    componentMatcher = defaultComponentMatcher,
+    traverseChildren = defaultTraverseChildren,
+  } = config ?? {}
   const clonedSpec = { ...childrenSpec }
   cloneAndGenerateNulls<keyof S, React.ComponentType>(clonedSpec, proxyComponentFactory)
 
@@ -35,16 +52,20 @@ export const withGroupedChildren = <P extends object, S extends Record<string, R
     const extractedChildren = Object.assign.apply(undefined, [
       {},
       ...typedKeys(childrenSpec).map((k) => ({
-        [uncapitalize(k.toString())]: spliceChildByType(restChildren, clonedSpec[k], childrenSpec[k] === null),
+        [uncapitalize(k.toString())]: spliceChildrenByType(
+          restChildren,
+          k,
+          clonedSpec[k],
+          componentMatcher,
+          childrenSpec[k] === null ? traverseChildren : undefined,
+        ),
       })),
     ])
 
     return createElement(Component, { ...props, ...extractedChildren }, restChildren)
   }
 
-  hoc.displayName =
-    (typeof getComponentName === "function" && getComponentName()) ||
-    "GroupedChildren." + (Component.displayName || Component.name || "unknown")
+  hoc.displayName = (typeof getComponentName === "function" && getComponentName()) || "GroupedChildren." + componentName
 
   return Object.assign(hoc, clonedSpec)
 }

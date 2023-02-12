@@ -36,6 +36,17 @@ export type OmitGroupedChildren<P extends object, S extends Record<string, React
   Uncapitalize<keyof S & string>
 >
 
+export type ArrayElement<T extends readonly unknown[]> = T extends readonly (infer ElementType)[] ? ElementType : never
+
+export type TrueReactChild = ArrayElement<ReturnType<typeof import("react").Children.toArray>>
+
+type ReactChildOrNull = TrueReactChild | null
+
+export type OptimizedReactChild = ReturnType<typeof import("react").Children.toArray>
+
+export type TraverseChildren = (component: ReactChildOrNull) => React.ReactNode
+export type ChildMatcher = (component: TrueReactChild, key: PropertyKey, type: string | React.ComponentType) => boolean
+
 export interface Config {
   /**
    * A custom method to convert React component children to array. Use when you want to flatten children.
@@ -56,4 +67,17 @@ export interface Config {
    * @returns A React component
    */
   proxyComponentFactory?: (key: string) => React.ComponentType
+
+  /**
+   * A custom function to traverse children of Proxy Component (when you define it as `null` in spec).
+   * Default will return `component.props.children || null`
+   * @param component Proxy Component or null
+   */
+  traverseChildren?: TraverseChildren
+
+  /**
+   * A custom component matcher
+   * @param component Child Component
+   */
+  componentMatcher?: ChildMatcher
 }

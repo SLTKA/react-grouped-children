@@ -4,7 +4,7 @@ export const hasProperty = <T extends Record<PropertyKey, unknown>, K extends ke
 ): obj is { [P in K]: T[P] } =>
   Boolean((typeof obj === "object" || typeof obj === "function") && Object.prototype.hasOwnProperty.call(obj, propName))
 
-export type NullValueKeys<T extends object> = {
+type NullValueKeys<T extends object> = {
   [K in keyof T]: T[K] extends null ? K : never
 }[keyof T]
 
