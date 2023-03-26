@@ -1,3 +1,5 @@
+export type DefaultTraverseChildren = TraverseChildren<React.ReactNode | undefined>
+
 /**
  * Converts specified groups into camelCase props. Use in combination with your component
  * props like:
@@ -18,23 +20,24 @@
  * }) => ...
  * ```
  */
-export type GroupedChildrenProps<T extends Record<string, React.ComponentType | null>> = {
-  [key in Uncapitalize<keyof T & string>]: T[key] extends null ? React.ReactNode | undefined : React.ReactNode
+export type GroupedChildrenProps<S extends ChildrenSpec, T = ReturnType<DefaultTraverseChildren>> = {
+  [key in Uncapitalize<keyof S & string>]: Array<null extends S[key] ? T | undefined : React.ReactNode>
 }
 
-export type SwapNullWithComponent<S extends Record<string, React.ComponentType | null>> = {
-  [k in keyof S]: S[k] extends null ? React.ComponentType<React.PropsWithChildren> : S[k]
+export type ChildrenSpec = Record<string, React.ComponentType<object> | null>
+
+export type SwapNullWithComponent<S extends ChildrenSpec> = {
+  [K in keyof S]: S[K] extends NonNullable<S[K]>
+    ? S[K]
+    : React.ComponentType<React.PropsWithChildren> & GeneratedGroupingComponent
 }
 
-export type WithGroupedChildrenComponent<
-  P extends object,
-  S extends Record<string, React.ComponentType | null>,
-> = React.FC<React.PropsWithChildren<OmitGroupedChildren<P, S>>> & SwapNullWithComponent<S>
+export type WithGroupedChildrenComponent<S extends ChildrenSpec, PROPS extends object> = React.FC<
+  React.PropsWithChildren<PROPS>
+> &
+  SwapNullWithComponent<S>
 
-export type OmitGroupedChildren<P extends object, S extends Record<string, React.ComponentType | null>> = Omit<
-  P,
-  Uncapitalize<keyof S & string>
->
+export type OmitGroupedChildren<P extends object, S extends ChildrenSpec> = Omit<P, Uncapitalize<keyof S & string>>
 
 export type ArrayElement<T extends readonly unknown[]> = T extends readonly (infer ElementType)[] ? ElementType : never
 
@@ -44,16 +47,34 @@ type ReactChildOrNull = TrueReactChild | null
 
 export type OptimizedReactChild = ReturnType<typeof import("react").Children.toArray>
 
-export type TraverseChildren = (component: ReactChildOrNull) => React.ReactNode
+export type TraverseChildren<R> = (component: ReactChildOrNull) => R
 export type ChildMatcher = (component: TrueReactChild, key: PropertyKey, type: string | React.ComponentType) => boolean
 
-export interface Config {
+export type ComponentFactory = (key: string) => React.ComponentType<React.PropsWithChildren>
+
+export interface ExtractionConfig<T> {
   /**
-   * A custom method to convert React component children to array. Use when you want to flatten children.
+   * A custom method to convert React component initial children to array on preprocessing stage.
+   * Use when you want to flatten children.
    * The function must always return a cloned array of children as it will be mutated.
    * If not defined standard React.Children.toArray is used.
    */
   childrenToArray?: typeof import("react").Children.toArray
+
+  /**
+   * A custom component matcher
+   * @param component Child Component
+   */
+  componentMatcher?: ChildMatcher
+
+  /**
+   * Function to transform children of generated groups (those defined by `null` in the provided spec)
+   */
+  traverseChildren?: TraverseChildren<T>
+}
+
+export interface Config<S extends ChildrenSpec, T = ReturnType<DefaultTraverseChildren>> extends ExtractionConfig<T> {
+  childrenSpec: S
 
   /**
    * A custom HOC name generation factory.
@@ -66,18 +87,9 @@ export interface Config {
    * @param key Current key of specification object
    * @returns A React component
    */
-  proxyComponentFactory?: (key: string) => React.ComponentType
+  proxyComponentFactory?: ComponentFactory
+}
 
-  /**
-   * A custom function to traverse children of Proxy Component (when you define it as `null` in spec).
-   * Default will return `component.props.children || null`
-   * @param component Proxy Component or null
-   */
-  traverseChildren?: TraverseChildren
-
-  /**
-   * A custom component matcher
-   * @param component Child Component
-   */
-  componentMatcher?: ChildMatcher
+export type GeneratedGroupingComponent = {
+  _groupGenerated?: true
 }
