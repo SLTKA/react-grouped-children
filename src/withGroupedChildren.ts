@@ -1,20 +1,63 @@
-import { Children, createElement } from "react"
+import React, { Children, createElement } from "react"
 import { proxyComponentFactory } from "./proxyComponentFactory"
 import { isNullValueKey, typedKeys } from "./typeGuards"
 import type {
-  WithGroupedChildrenComponent,
-  Config,
-  GroupedChildrenProps,
-  OmitGroupedChildren,
-  TraverseChildren,
+  ExtractionConfig,
   ChildMatcher,
+  ChildrenSpec,
+  ComponentFactory,
+  Config,
+  DefaultTraverseChildren,
+  GroupedChildrenProps,
+  SwapNullWithComponent,
+  WithGroupedChildrenComponent,
 } from "./types"
-import { spliceChildrenByType, uncapitalize } from "./utils"
+import { isGenerated, spliceChildrenByType, uncapitalize } from "./utils"
 
-const defaultFactory = (rootName: string) => (key: string) => proxyComponentFactory(`${rootName}.${key}`)
-const defaultTraverseChildren: TraverseChildren = (c) =>
+export const getDefaultFactory =
+  (rootName: string): ComponentFactory =>
+  (key: string) =>
+    proxyComponentFactory(`${rootName}.${key}`)
+export const defaultTraverseChildren: DefaultTraverseChildren = (c) =>
   (c && typeof c === "object" && "props" in c && c.props.children) || undefined
-const defaultComponentMatcher: ChildMatcher = (c, _, t) => !!c && typeof c === "object" && "type" in c && c.type === t
+export const defaultComponentMatcher: ChildMatcher = (c, _, t) =>
+  !!c && typeof c === "object" && "type" in c && c.type === t
+
+export const parseGroupingSpec = <S extends ChildrenSpec>(
+  childrenSpec: S,
+  proxyComponentFactory: ComponentFactory,
+): SwapNullWithComponent<S> => {
+  const clonedSpec = { ...childrenSpec }
+  generateNulls<S>(clonedSpec, proxyComponentFactory)
+  return clonedSpec
+}
+
+export const extractChildren = <S extends ChildrenSpec, T>(
+  children: React.ReactNode | undefined,
+  parsedSpec: SwapNullWithComponent<S>,
+  config: ExtractionConfig<T>,
+) => {
+  const {
+    childrenToArray = Children.toArray,
+    componentMatcher = defaultComponentMatcher,
+    traverseChildren = defaultTraverseChildren,
+  } = config
+  const restChildren = childrenToArray(children)
+
+  const extractedChildren: GroupedChildrenProps<S, T> = Object.assign.apply(undefined, [
+    {},
+    ...typedKeys(parsedSpec).map((k) => ({
+      [uncapitalize(k.toString())]: spliceChildrenByType<T | ReturnType<typeof defaultTraverseChildren>>(
+        restChildren,
+        k,
+        parsedSpec[k],
+        componentMatcher,
+        isGenerated(parsedSpec[k]) ? traverseChildren : undefined,
+      ),
+    })),
+  ])
+  return { specChildren: extractedChildren, restChildren }
+}
 
 /**
  * Gives an ability to pass multiple number of children groups to a component using classic
@@ -30,57 +73,59 @@ const defaultComponentMatcher: ChildMatcher = (c, _, t) => !!c && typeof c === "
  * @returns Component with set of grouping components defined as static properties to use
  * like `<Component.GroupName ... >grouped children</Component.GroupName>
  */
-export const withGroupedChildren = <P extends object, S extends Record<string, React.ComponentType | null>>(
-  Component: React.ComponentType<P & GroupedChildrenProps<S>>,
-  childrenSpec: S,
-  config?: Config,
-): WithGroupedChildrenComponent<P, S> => {
-  const componentName = Component.displayName || Component.name
-  const {
-    getComponentName,
-    childrenToArray = Children.toArray,
-    proxyComponentFactory = defaultFactory(componentName),
-    componentMatcher = defaultComponentMatcher,
-    traverseChildren = defaultTraverseChildren,
-  } = config ?? {}
-  const clonedSpec = { ...childrenSpec }
-  cloneAndGenerateNulls<keyof S, React.ComponentType>(clonedSpec, proxyComponentFactory)
+const withGroupedChildren =
+  <S extends ChildrenSpec, T = React.ReactNode>(config: Config<S, T>) =>
+  <PROPS extends object>(
+    Component: React.ComponentType<PROPS & GroupedChildrenProps<S, T>>,
+  ): WithGroupedChildrenComponent<S, PROPS> => {
+    const componentName = Component.displayName || Component.name
+    const { getComponentName, childrenSpec } = config
 
-  const hoc: React.FC<React.PropsWithChildren<OmitGroupedChildren<P, S>>> = ({ children, ...props }) => {
-    const restChildren = childrenToArray(children)
+    const parsedSpec = parseGroupingSpec(childrenSpec, config.proxyComponentFactory || getDefaultFactory(componentName))
 
-    const extractedChildren = Object.assign.apply(undefined, [
-      {},
-      ...typedKeys(childrenSpec).map((k) => ({
-        [uncapitalize(k.toString())]: spliceChildrenByType(
-          restChildren,
-          k,
-          clonedSpec[k],
-          componentMatcher,
-          childrenSpec[k] === null ? traverseChildren : undefined,
-        ),
-      })),
-    ])
+    const hoc: React.FC<React.PropsWithChildren<PROPS>> = (props) => {
+      const { specChildren, restChildren } = extractChildren(props.children, parsedSpec, config)
 
-    return createElement(Component, { ...props, ...extractedChildren }, restChildren)
+      return createElement(
+        Component,
+        {
+          ...props,
+          ...specChildren,
+        },
+        restChildren,
+      )
+    }
+
+    hoc.displayName =
+      (typeof getComponentName === "function" && getComponentName()) || `WithGroupedChildren(${componentName})`
+
+    return Object.assign(hoc, parsedSpec)
   }
 
-  hoc.displayName = (typeof getComponentName === "function" && getComponentName()) || "GroupedChildren." + componentName
+export { withGroupedChildren }
 
-  return Object.assign(hoc, clonedSpec)
+//Assertions:
+//All should be functions, more info here: https://github.com/microsoft/TypeScript/issues/34523
+function markAsGenerated<C extends React.ComponentType>(
+  componentType: C,
+): asserts componentType is C & { _groupGenerated: true } {
+  Object.assign(componentType, { _groupGenerated: true })
 }
 
-//Should be a function https://github.com/microsoft/TypeScript/issues/34523
-function cloneAndGenerateNulls<K extends PropertyKey, S extends React.ComponentType<React.PropsWithChildren>>(
-  childrenSpec: Record<K, S | null>,
-  factory: (key: string) => React.ComponentType,
-): asserts childrenSpec is { [key in K]: S } {
+function generateNulls<S extends ChildrenSpec>(
+  childrenSpec: S,
+  factory: ComponentFactory,
+): asserts childrenSpec is S & SwapNullWithComponent<S> {
   Object.assign(
     childrenSpec,
     Object.fromEntries(
       typedKeys(childrenSpec)
         .filter(isNullValueKey(childrenSpec))
-        .map((k) => [k, factory(k.toString())]),
+        .map((k) => {
+          const producedComponent = factory(k.toString())
+          markAsGenerated(producedComponent)
+          return [k, producedComponent]
+        }),
     ),
   )
 }

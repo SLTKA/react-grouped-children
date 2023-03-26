@@ -1,4 +1,4 @@
-import type { ChildMatcher, OptimizedReactChild, TraverseChildren } from "./types"
+import type { ChildMatcher, GeneratedGroupingComponent, OptimizedReactChild, TraverseChildren } from "./types"
 
 export const uncapitalize = <S extends string>(text: S): Capitalize<S> =>
   // Currently TS does not allow to properly validate type as Capitalize<S>,
@@ -20,14 +20,14 @@ export const uncapitalize = <S extends string>(text: S): Capitalize<S> =>
  * @returns array of matched elements. For traversed elements each element of returned array will
  * contain children of a single Proxy Component.
  */
-export const spliceChildrenByType = (
+export const spliceChildrenByType = <T>(
   children: OptimizedReactChild,
   key: PropertyKey,
-  type: string | React.ComponentType,
+  type: string | React.ComponentType<any>,
   componentMatcher: ChildMatcher,
-  traverseChildren?: TraverseChildren,
-) => {
-  const located: React.ReactNode[] = []
+  traverseChildren?: TraverseChildren<T>,
+): Array<React.ReactNode | T> => {
+  const located: Array<React.ReactNode | T> = []
   let componentPos = -1
   while ((componentPos = children.findIndex((c) => componentMatcher(c, key, type))) > -1) {
     const locatedComponent = children.splice(componentPos, 1)[0]
@@ -38,3 +38,6 @@ export const spliceChildrenByType = (
   }
   return located
 }
+
+export const isGenerated = (c: unknown): c is GeneratedGroupingComponent =>
+  !!c && (typeof c === "object" || typeof c === "function") && "_groupGenerated" in c && Boolean(c._groupGenerated)
