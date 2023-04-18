@@ -1,6 +1,6 @@
 import { Children, createElement } from "react"
-import { proxyComponentFactory } from "./proxyComponentFactory.js"
-import { isNullValueKey, typedKeys } from "./typeGuards.js"
+import { proxyComponentFactory } from "./proxyComponentFactory"
+import { isNullValueKey, typedKeys } from "./typeGuards"
 import type {
   ExtractionConfig,
   ChildMatcher,
@@ -11,8 +11,8 @@ import type {
   GroupedChildrenProps,
   SwapNullWithComponent,
   WithGroupedChildrenComponent,
-} from "./types.js"
-import { isGenerated, spliceChildrenByType, uncapitalize } from "./utils.js"
+} from "./types"
+import { isGenerated, spliceChildrenByType, uncapitalize } from "./utils"
 
 export const getDefaultFactory =
   (rootName: string): ComponentFactory =>

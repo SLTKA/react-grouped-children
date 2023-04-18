@@ -17,7 +17,7 @@ describe("withGroupedChildren", () => {
 
   it("should set right component name from name", () => {
     const WrappedComponent = withGroupedChildren({ childrenSpec })(component)
-    expect(WrappedComponent.displayName).toBe("GroupedChildren.mockConstructor")
+    expect(WrappedComponent.displayName).toBe("WithGroupedChildren(mockConstructor)")
   })
 
   it("should set right component name from displayName", () => {

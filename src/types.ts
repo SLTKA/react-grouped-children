@@ -24,6 +24,8 @@ export type GroupedChildrenProps<S extends ChildrenSpec, T = ReturnType<DefaultT
   [key in Uncapitalize<keyof S & string>]: Array<null extends S[key] ? T | undefined : React.ReactNode>
 }
 
+export type ToArray = (children: React.ReactNode | React.ReactNode[]) => Array<Exclude<React.ReactNode, boolean | null | undefined>>
+
 export type ChildrenSpec = Record<string, React.ComponentType<object> | null>
 
 export type SwapNullWithComponent<S extends ChildrenSpec> = {
@@ -41,11 +43,11 @@ export type OmitGroupedChildren<P extends object, S extends ChildrenSpec> = Omit
 
 export type ArrayElement<T extends readonly unknown[]> = T extends readonly (infer ElementType)[] ? ElementType : never
 
-export type TrueReactChild = ArrayElement<ReturnType<typeof import("react").Children.toArray>>
+export type TrueReactChild = ArrayElement<ReturnType<ToArray>>
 
 type ReactChildOrNull = TrueReactChild | null
 
-export type OptimizedReactChild = ReturnType<typeof import("react").Children.toArray>
+export type OptimizedReactChild = ReturnType<ToArray>
 
 export type TraverseChildren<R> = (component: ReactChildOrNull) => R
 export type ChildMatcher = (component: TrueReactChild, key: PropertyKey, type: string | React.ComponentType) => boolean
@@ -59,7 +61,7 @@ export interface ExtractionConfig<T> {
    * The function must always return a cloned array of children as it will be mutated.
    * If not defined standard React.Children.toArray is used.
    */
-  childrenToArray?: typeof import("react").Children.toArray
+  childrenToArray?: ToArray
 
   /**
    * A custom component matcher

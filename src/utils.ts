@@ -1,4 +1,4 @@
-import type { ChildMatcher, GeneratedGroupingComponent, OptimizedReactChild, TraverseChildren } from "./types.js"
+import type { ChildMatcher, GeneratedGroupingComponent, OptimizedReactChild, TraverseChildren } from "./types"
 
 export const uncapitalize = <S extends string>(text: S): Capitalize<S> =>
   // Currently TS does not allow to properly validate type as Capitalize<S>,

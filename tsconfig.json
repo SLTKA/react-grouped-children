@@ -11,9 +11,6 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "jsx": "react-jsx",
-    "declaration": true,
-    "outDir": "./dist",
-    "verbatimModuleSyntax": true
   },
   "include": ["src/index.ts"]
 }
