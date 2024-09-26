@@ -2746,8 +2746,8 @@ rollup-plugin-typescript2@^0.34.1:
     tslib "^2.4.0"
 
 rollup@^3.20.5:
-  version "3.20.5"
-  resolved "https://registry.npmjs.org/rollup/-/rollup-3.20.5.tgz"
+  version "3.29.5"
+  resolved "https://registry.yarnpkg.com/rollup/-/rollup-3.29.5.tgz#8a2e477a758b520fb78daf04bca4c522c1da8a54"
   optionalDependencies:
     fsevents "~2.3.2"
 
